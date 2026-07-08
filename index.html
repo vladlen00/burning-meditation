@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>Горит внутри — irena.bio</title>
+<script src="telegram-web-app.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;1,300&family=Raleway:wght@200;300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width:100%; height:100%; background:#0a0402; overflow:hidden; font-family:'Raleway',sans-serif; touch-action:manipulation; }
+
+  #c { position:fixed; inset:0; z-index:0; }
+
+  .screen {
+    position:relative; z-index:2;
+    height:100%;
+    display:flex; flex-direction:column; align-items:center; justify-content:space-between;
+    padding: clamp(32px,6vh,56px) 32px clamp(28px,5vh,48px);
+    pointer-events:none;
+  }
+
+  .header-wrap {
+    display:flex; flex-direction:column; align-items:center; gap:6px; width:100%;
+  }
+  .title {
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:300;
+    font-size:clamp(1.6rem,6.5vw,2.4rem);
+    color:#FF6B35;
+    text-align:center;
+    text-shadow:0 2px 10px rgba(0,0,0,1), 0 0 25px rgba(0,0,0,0.6);
+  }
+  .subtitle {
+    font-family:'Raleway',sans-serif; font-weight:400;
+    font-size:12px; letter-spacing:0.1em; text-transform:uppercase;
+    color:#9a7560;
+    text-shadow:0 1px 4px rgba(0,0,0,0.9);
+  }
+
+  .info-block {
+    pointer-events:all;
+    width:100%; max-width:380px;
+    display:flex; flex-direction:column; align-items:center;
+    gap:10px; text-align:center;
+    background:rgba(0,0,0,0.78);
+    backdrop-filter:blur(4px);
+    -webkit-backdrop-filter:blur(4px);
+    border-radius:18px;
+    padding:18px 20px;
+  }
+  .info-intro {
+    font-family:'Cormorant Garamond',serif;
+    font-style:italic;
+    font-size:14px;
+    color:#c99a80;
+    font-weight:400;
+  }
+  .info-list {
+    list-style:none; padding:0; margin:0;
+    display:flex; flex-direction:column; gap:7px;
+    font-family:'Raleway',sans-serif;
+    font-weight:500;
+    font-size:14px; line-height:1.4;
+    color:#f2e0d4;
+    text-align:left;
+    width:100%;
+  }
+  .info-list li {
+    position:relative;
+    padding-left:18px;
+  }
+  .info-list li::before {
+    content:"·";
+    color:#FF6B35;
+    font-weight:700;
+    position:absolute;
+    left:4px;
+    top:0;
+  }
+  .info-details {
+    display:none;
+    margin-top:4px;
+    font-family:'Raleway',sans-serif;
+    font-weight:400;
+    font-size:13px; line-height:1.6;
+    color:#e0cabc;
+    text-align:left;
+  }
+  .info-details p { margin-bottom:8px; text-align:left; }
+  .info-details p:last-child { margin-bottom:0; }
+  .recommend {
+    margin-top:10px;
+    padding:12px 14px;
+    background:rgba(255,140,80,0.1);
+    border:1px solid rgba(255,140,80,0.3);
+    border-radius:10px;
+    font-family:'Raleway',sans-serif;
+    font-weight:400;
+    font-size:13px; line-height:1.5;
+    color:#ecdccf;
+    text-align:left;
+    display:flex;
+    gap:8px;
+    align-items:flex-start;
+  }
+  .info-toggle {
+    background:none; border:none; cursor:pointer;
+    color:#FF6B35;
+    font-family:'Raleway',sans-serif;
+    font-weight:500;
+    font-size:13px;
+    padding:8px 14px;
+    -webkit-tap-highlight-color:transparent;
+    letter-spacing:0.04em;
+  }
+
+  body.details-open .info-details { display:block; }
+  body.session-active .info-block,
+  body.session-active .subtitle { display:none; }
+
+  .bottom {
+    pointer-events:all;
+    display:flex; flex-direction:column; align-items:center; gap:14px; width:100%;
+  }
+
+  .btn {
+    background:rgba(0,0,0,0.5);
+    border:1px solid rgba(255,107,53,0.55);
+    border-radius:40px;
+    color:rgba(255,170,110,1);
+    font-family:'Raleway',sans-serif; font-weight:300;
+    font-size:clamp(0.68rem,2.2vw,0.82rem);
+    letter-spacing:0.45em; text-transform:uppercase;
+    padding:14px 40px; cursor:pointer;
+    transition:all 0.4s;
+    text-shadow:0 0 12px rgba(220,90,40,0.6);
+    box-shadow:0 0 20px rgba(220,90,40,0.15);
+    backdrop-filter:blur(6px);
+    -webkit-tap-highlight-color:transparent;
+    min-width:160px;
+  }
+  .btn:hover, .btn:active {
+    border-color:rgba(255,130,70,0.85); color:#fff;
+    box-shadow:0 0 35px rgba(220,90,40,0.35);
+  }
+
+  .progress-wrap {
+    width:clamp(240px,80vw,360px);
+    display:none; flex-direction:column; gap:7px; align-items:center;
+    background:rgba(0,0,0,0.5); border-radius:20px;
+    padding:12px 20px; backdrop-filter:blur(6px);
+  }
+  .progress-track {
+    width:100%; height:8px;
+    background:rgba(200,80,40,0.15); border-radius:8px;
+    cursor:pointer;
+  }
+  .progress-track:hover { background:rgba(200,80,40,0.25); }
+  .progress-fill {
+    height:100%; width:0%;
+    background:linear-gradient(90deg,#7a2a0a,#ff8c42);
+    border-radius:3px; transition:width 1s linear;
+    box-shadow:0 0 8px rgba(255,120,60,0.7);
+  }
+  .progress-time {
+    font-family:'Raleway',sans-serif; font-weight:200;
+    font-size:clamp(0.65rem,2vw,0.75rem);
+    letter-spacing:0.3em; color:rgba(230,140,90,0.7);
+    text-shadow:0 1px 6px rgba(0,0,0,0.9);
+  }
+  .skip-row {
+    display:flex; align-items:center; justify-content:center; gap:20px; width:100%;
+  }
+  .skip-btn {
+    background:none; border:none; cursor:pointer;
+    color:rgba(230,140,90,0.6); font-family:'Raleway',sans-serif;
+    font-size:0.72rem; letter-spacing:0.15em;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 10px; border-radius:8px;
+    transition:all 0.2s; -webkit-tap-highlight-color:transparent;
+  }
+  .skip-btn:hover, .skip-btn:active { color:rgba(255,180,130,1); }
+  .skip-btn svg { width:22px; height:22px; }
+  .skip-label { font-size:0.62rem; letter-spacing:0.1em; opacity:0.7; }
+
+  /* Author */
+  .author {
+    position:fixed; bottom:10px; left:0; right:0;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    z-index:3; pointer-events:none;
+  }
+  .author-name {
+    font-family:'Raleway',sans-serif; font-weight:200;
+    font-size:0.72rem; letter-spacing:0.25em;
+    color:rgba(230,110,60,0.75);
+    text-shadow:0 1px 4px rgba(0,0,0,0.9);
+  }
+
+
+  /* Finish */
+  .finish {
+    display:none; position:fixed; inset:0; z-index:20;
+    background:rgba(10,4,2,0.94);
+    flex-direction:column; align-items:center; justify-content:center;
+    gap:22px; text-align:center; padding:40px;
+  }
+  .finish.show { display:flex; }
+  .finish-title {
+    font-family:'Cormorant Garamond',serif; font-style:italic; font-weight:300;
+    font-size:clamp(1.2rem,5vw,1.7rem); letter-spacing:0.1em;
+    color:rgba(255,140,90,0.75); opacity:0;
+    animation:fu 1.5s ease 0.3s forwards;
+  }
+  .finish-sub {
+    font-size:clamp(0.62rem,2vw,0.72rem); letter-spacing:0.35em;
+    text-transform:uppercase; color:rgba(200,80,40,0.25);
+    opacity:0; animation:fu 1.5s ease 0.9s forwards;
+  }
+  .finish-author {
+    display:flex; align-items:center; gap:6px;
+    opacity:0; animation:fu 1.5s ease 1.2s forwards;
+  }
+  .finish-btn { opacity:0; animation:fu 1.5s ease 1.4s forwards; }
+  @keyframes fu { to { opacity:1; } }
+  .app { display: none; height: 100%; }
+  .app.ready { display: block; }
+</style>
+</head>
+<body>
+<a id="appBackBtn" href="https://vladlen00.github.io/studio/?v=8" style="display:none;position:fixed;top:12px;left:12px;z-index:100;align-items:center;gap:6px;padding:8px 14px;background:rgba(160,120,255,0.15);border:1px solid rgba(160,120,255,0.35);border-radius:12px;color:#e0d8f0;font-size:13px;font-weight:600;text-decoration:none;">← В студию</a>
+<div class="app">
+
+<canvas id="c"></canvas>
+
+<audio id="audio" preload="auto">
+  <source src="meditation_burning.mp3" type="audio/mpeg">
+</audio>
+
+<div class="screen">
+  <div class="header-wrap">
+    <div class="title">Горит внутри</div>
+    <div class="subtitle">16 МИН · АКТИВНАЯ</div>
+  </div>
+
+  <div class="info-block" id="infoBlock">
+    <div class="info-intro">Медитация для тех, кому нужно:</div>
+    <ul class="info-list">
+      <li>Вернуть энергию и внутренний драйв</li>
+      <li>Выйти из апатии и вялости</li>
+      <li>Зажечь мотивацию действовать</li>
+    </ul>
+    <div class="info-details">
+      <p>Активная практика, которая поднимает внутреннюю энергию, когда всё погасло и нет сил. Ты снова почувствуешь огонь внутри - желание двигаться, создавать и жить в полную силу.</p>
+      <div class="recommend">
+        <span>🔥</span>
+        <span>Делать утром или днём, когда нужен заряд. Не перед сном - практика бодрит.</span>
+      </div>
+    </div>
+    <button class="info-toggle" id="infoToggle" type="button">↓ Подробнее</button>
+  </div>
+
+  <div class="bottom">
+    <button class="btn" id="mainBtn">Старт</button>
+    <div class="progress-wrap" id="pw">
+      <div class="progress-track" id="progressTrack"><div class="progress-fill" id="pf"></div></div>
+      <div class="skip-row">
+        <button class="skip-btn" id="skipBack">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 17l-5-5 5-5"/><path d="M18 17l-5-5 5-5"/>
+          </svg>
+          <span class="skip-label">−15 сек</span>
+        </button>
+        <div class="progress-time" id="pt">осталось ...</div>
+        <button class="skip-btn" id="skipFwd">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M13 17l5-5-5-5"/><path d="M6 17l5-5-5-5"/>
+          </svg>
+          <span class="skip-label">+15 сек</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="author">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="rgba(230,110,60,0.75)" stroke-width="1.5" stroke-linecap="round">
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+    <circle cx="12" cy="12" r="4"/>
+    <circle cx="17.5" cy="6.5" r="1.2" fill="rgba(230,110,60,0.75)" stroke="none"/>
+  </svg>
+  <span class="author-name">irena.bio</span>
+</div>
+
+<div class="finish" id="fin">
+  <div class="finish-title">В тебе горит огонь</div>
+  <div class="finish-sub">Почувствуй эту силу. Ты можешь всё.</div>
+  <div class="finish-author">
+    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(230,110,60,0.6)" stroke-width="1.5" stroke-linecap="round">
+      <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+      <circle cx="12" cy="12" r="4"/>
+      <circle cx="17.5" cy="6.5" r="1.2" fill="rgba(230,110,60,0.6)" stroke="none"/>
+    </svg>
+    <span style="font-family:'Raleway',sans-serif;font-weight:200;font-size:0.68rem;letter-spacing:0.25em;color:rgba(230,110,60,0.6);">irena.bio</span>
+  </div>
+  <button class="btn" id="repeatBtn">Повторить</button>
+</div>
+
+</div>
+<script>
+// ====== Telegram Mini App access control ======
+const IRENA_VERIFY_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/verify-access";
+const IRENA_TOKEN_KEY = "irena_access_token";
+const IRENA_TOKEN_EXPIRES_KEY = "irena_access_token_expires_at";
+const IRENA_SUBSCRIBE_URL = "https://t.me/Biochakirena_bot";
+// ЧАСТЬ A (дыра №1): серверная проверка веб-токена (подпись+exp+подписка). ТГ-путь её НЕ вызывает.
+const IRENA_APP_VERIFY_URL = "https://kjzxrpwqyyjcykwbqskn.supabase.co/functions/v1/verify-app-token";
+// Фолбэк-прокси (Vercel rewrite /sb -> supabase), обходит VPN-обрывы. Абсолютный URL - github.io своего /sb не имеет.
+const APP_VERIFY_URL_PROXY = "https://biohack-tracker-blond.vercel.app/sb/functions/v1/verify-app-token";
+const IRENA_WEB_APP_URL = "https://app.irenabio.com/";
+const APP_VERIFY_MAX_ATTEMPTS = 3;                // исходная попытка + 2 повтора
+const APP_VERIFY_RETRY_MS = [1000, 2000];
+function irenaSleepA(ms) { return new Promise((r) => setTimeout(r, ms)); }
+
+function irenaGetStoredToken() {
+  try {
+    const token = localStorage.getItem(IRENA_TOKEN_KEY);
+    const expiresAt = parseInt(localStorage.getItem(IRENA_TOKEN_EXPIRES_KEY) || "0", 10);
+    if (!token || !expiresAt) return null;
+    if (Date.now() >= expiresAt - 60000) return null;
+    return token;
+  } catch { return null; }
+}
+
+function irenaStoreToken(token, ttl) {
+  try {
+    localStorage.setItem(IRENA_TOKEN_KEY, token);
+    localStorage.setItem(IRENA_TOKEN_EXPIRES_KEY, String(Date.now() + ttl * 1000));
+  } catch {}
+}
+
+function irenaGetInitData() {
+  try {
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData) {
+      return window.Telegram.WebApp.initData;
+    }
+  } catch {}
+  return null;
+}
+
+function irenaShowBlocked(reason) {
+  document.body.innerHTML = '';
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#1a1228;color:#e0d8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
+  overlay.innerHTML = `
+    <div style="font-size:64px;margin-bottom:24px;">🔒</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">Доступ закрыт</div>
+    <div style="font-size:15px;line-height:1.6;color:rgba(255,255,255,0.7);margin-bottom:32px;max-width:340px;">Медитация доступна только участницам клуба Ирены Пол. Для получения доступа перейди в бот и оформи подписку.</div>
+    <a href="${irenaGetInitData() ? IRENA_SUBSCRIBE_URL : IRENA_WEB_APP_URL}" ${irenaGetInitData() ? 'target="_blank" rel="noopener"' : ""} style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border-radius:14px;font-size:15px;font-weight:600;text-decoration:none;">${irenaGetInitData() ? "Оформить подписку" : "Открыть приложение"}</a>
+    ${reason ? `<div style="position:absolute;bottom:12px;left:0;right:0;font-size:10px;color:rgba(255,255,255,0.15);text-align:center;">${reason}</div>` : ''}
+  `;
+  document.body.appendChild(overlay);
+}
+
+// ДВЕРЬ 2: веб-токен из #irena_token (только веб; в ТГ initData есть -> сюда токен не кладём -> no-op).
+function irenaConsumeWebToken() {
+  try {
+    var raw = location.hash || "";
+    if (raw.charAt(0) === "#") raw = raw.slice(1);
+    if (!raw) return false;
+    var params = new URLSearchParams(raw);
+    var token = params.get("irena_token");
+    if (!token) return false;
+    var ttl = parseInt(params.get("exp") || "0", 10);
+    if (!ttl || ttl <= 0) ttl = 900;
+    irenaStoreToken(token, ttl);
+    params.delete("irena_token"); params.delete("exp");
+    var rest = params.toString();
+    history.replaceState(null, "", location.pathname + location.search + (rest ? "#" + rest : ""));
+    return true;
+  } catch { return false; }
+}
+// ЧАСТЬ A: оверлей на время серверной проверки (только веб-ветка; в ТГ не показывается).
+function irenaShowChecking(show) {
+  try {
+    let el = document.getElementById("irena-checking");
+    if (!show) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement("div");
+    el.id = "irena-checking";
+    el.style.cssText = "position:fixed;inset:0;z-index:999998;background:#1a1228;color:#e0d8f0;display:flex;align-items:center;justify-content:center;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;";
+    el.textContent = "Проверяем доступ...";
+    document.body.appendChild(el);
+  } catch {}
+}
+
+// ЧАСТЬ A: fail-closed при обрыве - НЕ пускаем, но и не приговариваем: экран с "Обновить".
+function irenaShowWebFail(reason) {
+  document.body.innerHTML = '';
+  const overlay = document.createElement("div");
+  overlay.style.cssText = "position:fixed;inset:0;z-index:999999;background:#1a1228;color:#e0d8f0;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;text-align:center;";
+  overlay.innerHTML = `
+    <div style="font-size:64px;margin-bottom:24px;">\u{1F4E1}</div>
+    <div style="font-size:22px;font-weight:700;margin-bottom:12px;">Не получилось проверить доступ</div>
+    <div style="font-size:15px;line-height:1.6;color:rgba(255,255,255,0.7);margin-bottom:32px;max-width:340px;">С подпиской всё в порядке - приложение просто не достучалось до сервера. Попробуй включить VPN или сменить сеть, потом нажми «Обновить».</div>
+    <button type="button" onclick="location.reload()" style="display:inline-block;padding:14px 32px;background:linear-gradient(135deg,#6366f1,#8b5cf6);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;">Обновить</button>
+    ${reason ? `<div style="position:absolute;bottom:12px;left:0;right:0;font-size:10px;color:rgba(255,255,255,0.15);text-align:center;">${reason}</div>` : ''}
+  `;
+  document.body.appendChild(overlay);
+}
+
+// ЧАСТЬ A (веб): запрос вердикта с ретраем. {res,data} если сервер ОТВЕТИЛ (401/403 = вердикт,
+// не повторяем), {networkError:true} после всех обрывов. 5xx = "нет вердикта" -> ретрай.
+async function irenaRequestVerifyToken(token) {
+  let lastError = null;
+  for (let attempt = 1; attempt <= APP_VERIFY_MAX_ATTEMPTS; attempt++) {
+    try {
+      const url = attempt === 1 ? IRENA_APP_VERIFY_URL : APP_VERIFY_URL_PROXY;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (res.status >= 500) throw new Error("server_5xx");
+      const data = await res.json().catch(() => ({}));
+      return { res, data };
+    } catch (e) {
+      lastError = e;
+      if (attempt < APP_VERIFY_MAX_ATTEMPTS) await irenaSleepA(APP_VERIFY_RETRY_MS[attempt - 1]);
+    }
+  }
+  console.error("verify-app-token: all attempts failed:", lastError);
+  return { networkError: true };
+}
+
+async function irenaCheckAccess() {
+  irenaConsumeWebToken();   // ДВЕРЬ 2 (в ТГ no-op) - без изменений
+  const cached = irenaGetStoredToken();
+  const initData = irenaGetInitData();
+
+  if (initData) {
+    // ===== ТГ-путь (870): ЛОГИКА НЕ МЕНЯЛАСЬ, verify-app-token отсюда НЕДОСТИЖИМ =====
+    if (cached) return true;   // offline-fast-path 7д-токена, как был
+    try {
+      const res = await fetch(IRENA_VERIFY_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ initData }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && data.token) {
+        irenaStoreToken(data.token, data.expiresIn || 86400);
+        return true;
+      }
+      const reason = res.status === 403 ? "not_a_member" : res.status === 401 ? "invalid_init_data" : `error_${res.status}`;
+      irenaShowBlocked(reason);
+      return false;
+    } catch {
+      irenaShowBlocked("network_error");
+      return false;
+    }
+  }
+
+  // ===== ЧАСТЬ A, ВЕБ: наличие токена больше НЕ вердикт - подпись+exp+подписку проверяет сервер =====
+  if (!cached) { irenaShowBlocked("no_web_token"); return false; }
+  irenaShowChecking(true);
+  const v = await irenaRequestVerifyToken(cached);
+  irenaShowChecking(false);
+  if (v.networkError) { irenaShowWebFail("network_error"); return false; } // fail-closed + "Обновить"
+  if (v.res.ok && v.data.ok) return true;
+  // Сервер сказал НЕТ (крафт/протухший/без подписки): мёртвый токен чистим, честный блок
+  try { localStorage.removeItem(IRENA_TOKEN_KEY); localStorage.removeItem(IRENA_TOKEN_EXPIRES_KEY); } catch {}
+  irenaShowBlocked("web_" + ((v.data && v.data.reason) || ("error_" + v.res.status)));
+  return false;
+}
+// ====== End access control ======
+
+// ── Canvas ───────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H, cx, cy, S;
+
+function resize() {
+  W = canvas.width  = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  cx = W/2; cy = H/2;
+  S = Math.min(W, H);
+}
+window.addEventListener('resize', resize);
+resize();
+
+const PI2 = Math.PI * 2;
+
+function petal(ocx, ocy, len, angle, w, fillStyle) {
+  ctx.save();
+  ctx.translate(ocx, ocy);
+  ctx.rotate(angle);
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.bezierCurveTo( w, -len*0.35,  w, -len*0.78, 0, -len);
+  ctx.bezierCurveTo(-w, -len*0.78, -w, -len*0.35, 0,  0);
+  ctx.fillStyle = fillStyle;
+  ctx.fill();
+  ctx.restore();
+}
+
+class Spark {
+  constructor() { this.reset(true); }
+  reset(init) {
+    this.x    = cx + (Math.random()-0.5)*S*0.5;
+    this.y    = init ? Math.random()*H : cy + S*0.15;
+    this.vx   = (Math.random()-0.5)*0.6;
+    this.vy   = -(0.4 + Math.random()*1.2);
+    this.life = init ? Math.random()*120 : 0;
+    this.maxL = 80 + Math.random()*120;
+    this.r    = 0.8 + Math.random()*2;
+    this.hue  = 15 + Math.random()*25;
+    this.phase= Math.random()*PI2;
+  }
+  update() {
+    this.life++;
+    this.x += this.vx + Math.sin(this.life*0.08+this.phase)*0.4;
+    this.y += this.vy;
+    if (this.life >= this.maxL || this.y < -10) this.reset(false);
+  }
+  draw() {
+    const t = this.life/this.maxL;
+    const a = (t<0.2 ? t/0.2 : 1-t)*0.95;
+    ctx.save();
+    ctx.globalCompositeOperation = 'screen';
+    ctx.globalAlpha = a;
+    ctx.fillStyle = `hsl(${this.hue},80%,75%)`;
+    ctx.shadowBlur = 8; ctx.shadowColor = `hsl(${this.hue},80%,65%)`;
+    ctx.beginPath(); ctx.arc(this.x, this.y, this.r*(1-t*0.5), 0, PI2); ctx.fill();
+    ctx.restore();
+  }
+}
+const sparks = Array.from({length: 70}, () => new Spark());
+
+let t = 0;
+let flowerScale = 1, flowerTarget = 1;
+
+function drawFrame() {
+  t += 0.006;
+  ctx.fillStyle = 'rgba(12,5,2,0.22)';
+  ctx.fillRect(0, 0, W, H);
+
+  flowerScale += (flowerTarget - flowerScale) * 0.08;
+  const R = S * 0.38 * flowerScale;
+  ctx.save();
+  ctx.globalCompositeOperation = 'screen';
+
+  const halo = ctx.createRadialGradient(cx, cy, 0, cx, cy, R*1.4);
+  halo.addColorStop(0, `rgba(200,90,40,${0.12+0.05*Math.sin(t*0.7)})`);
+  halo.addColorStop(0.6, 'rgba(120,40,15,0.05)');
+  halo.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = halo; ctx.fillRect(0,0,W,H);
+
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*0.18);
+  for (let i=0;i<8;i++) {
+    const a=(i/8)*PI2, p=0.78+0.22*Math.sin(t*1.2+i*0.5), hue=12+i*4;
+    petal(0,0,R,a,R*0.19*p,`hsla(${hue},65%,45%,${0.25*p})`);
+  }
+  ctx.restore();
+
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(-t*0.32);
+  for (let i=0;i<12;i++) {
+    const a=(i/12)*PI2, p=0.75+0.25*Math.sin(t*1.05+i*0.45), hue=18+i*3;
+    petal(0,0,R*0.68,a,R*0.12*p,`hsla(${hue},70%,58%,${0.30*p})`);
+  }
+  ctx.restore();
+
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(t*0.55);
+  for (let i=0;i<6;i++) {
+    const a=(i/6)*PI2, p=0.82+0.18*Math.sin(t*1.6+i*0.7);
+    petal(0,0,R*0.38,a,R*0.075*p,`hsla(24,85%,52%,${0.42*p})`);
+  }
+  ctx.restore();
+
+  ctx.save(); ctx.translate(cx,cy); ctx.rotate(-t*1.1);
+  for (let i=0;i<4;i++) {
+    const a=(i/4)*PI2, p=0.88+0.12*Math.sin(t*2.2+i);
+    petal(0,0,R*0.17,a,R*0.04*p,`hsla(30,90%,62%,${0.55*p})`);
+  }
+  ctx.restore();
+
+  [0.72,0.5,0.32,0.18].forEach((frac,i) => {
+    ctx.beginPath(); ctx.arc(cx,cy,R*frac,0,PI2);
+    ctx.strokeStyle=`hsla(${12+i*6},75%,52%,${0.07+0.04*Math.sin(t*0.9+i)})`;
+    ctx.lineWidth=0.6; ctx.stroke();
+  });
+
+  const coreR = R*0.09*(0.88+0.12*Math.sin(t*2.8));
+  const core = ctx.createRadialGradient(cx,cy,0,cx,cy,coreR);
+  core.addColorStop(0, `hsla(35,100%,90%,${0.95+0.05*Math.sin(t*3.5)})`);
+  core.addColorStop(0.35,'hsla(28,95%,68%,0.85)');
+  core.addColorStop(0.7,'hsla(20,90%,50%,0.5)');
+  core.addColorStop(1,'hsla(14,85%,32%,0)');
+  ctx.fillStyle=core; ctx.beginPath(); ctx.arc(cx,cy,coreR,0,PI2); ctx.fill();
+  ctx.restore();
+
+  sparks.forEach(s => { s.update(); s.draw(); });
+  requestAnimationFrame(drawFrame);
+}
+drawFrame();
+
+// ── UI Elements ───────────────────────────────────────────────────────────────
+const audio     = document.getElementById('audio');
+const mainBtn   = document.getElementById('mainBtn');
+const pw        = document.getElementById('pw');
+const pf        = document.getElementById('pf');
+const pt        = document.getElementById('pt');
+const fin       = document.getElementById('fin');
+const repeatBtn = document.getElementById('repeatBtn');
+
+// Scrubbing
+const track    = document.getElementById('progressTrack');
+const skipBack = document.getElementById('skipBack');
+const skipFwd  = document.getElementById('skipFwd');
+const infoToggle = document.getElementById('infoToggle');
+
+infoToggle.addEventListener('click', function() {
+  const open = document.body.classList.toggle('details-open');
+  flowerTarget = open ? 0.75 : 1;
+  infoToggle.textContent = open ? '↑ Свернуть' : '↓ Подробнее';
+});
+
+function updateBar() {
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  const left = Math.max(dur - elapsed, 0);
+  pf.style.width = (Math.min(elapsed/dur,1)*100)+'%';
+  pt.textContent = 'осталось ' + fmt(left);
+}
+
+track.addEventListener('click', function(e) {
+  if (mode === 'start') return;
+  const rect = this.getBoundingClientRect();
+  const frac = Math.max(0, Math.min(1, (e.clientX-rect.left)/rect.width));
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  elapsed = frac * dur;
+  audio.currentTime = elapsed;
+  lastTs = null;
+  updateBar();
+});
+
+function skip(sec) {
+  if (mode === 'start') return;
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  elapsed = Math.max(0, Math.min(dur-1, elapsed+sec));
+  audio.currentTime = elapsed;
+  lastTs = null;
+  updateBar();
+}
+skipBack.addEventListener('click', () => skip(-15));
+skipFwd.addEventListener('click',  () => skip(15));
+
+let mode = 'start';
+let playing = false, rafAudio = null;
+let elapsed = 0, lastTs = null;
+const SESSION = 1800;
+
+function fmt(s) {
+  s = Math.max(0, Math.floor(s));
+  return Math.floor(s/60) + ':' + String(s%60).padStart(2,'0');
+}
+
+function tickAudio(ts) {
+  if (mode !== 'playing') return;
+  if (lastTs) elapsed += (ts - lastTs) / 1000;
+  lastTs = ts;
+  const dur = (audio.duration && isFinite(audio.duration)) ? audio.duration : SESSION;
+  const left = Math.max(dur - elapsed, 0);
+  updateBar();
+  if (left <= 25) audio.volume = Math.max(0, (left / 25) * 0.9);
+  if (left <= 0) { endSession(); return; }
+  rafAudio = requestAnimationFrame(tickAudio);
+}
+
+mainBtn.addEventListener('click', function() {
+  if (mode === 'start') {
+    mode = 'playing';
+    elapsed = 0; lastTs = null;
+    document.body.classList.add('session-active');
+    pw.style.display = 'flex';
+    mainBtn.textContent = 'Пауза';
+    audio.currentTime = 0;
+    audio.volume = 0;
+    audio.play().catch(function(){});
+    let v = 0;
+    const fi = setInterval(function() {
+      v = Math.min(v + 0.04, 0.9);
+      audio.volume = v;
+      if (v >= 0.9) clearInterval(fi);
+    }, 200);
+    rafAudio = requestAnimationFrame(tickAudio);
+
+  } else if (mode === 'playing') {
+    mode = 'paused';
+    lastTs = null;
+    cancelAnimationFrame(rafAudio);
+    audio.pause();
+    mainBtn.textContent = 'Продолжить';
+
+  } else if (mode === 'paused') {
+    mode = 'playing';
+    audio.play().catch(function(){});
+    mainBtn.textContent = 'Пауза';
+    rafAudio = requestAnimationFrame(tickAudio);
+  }
+});
+
+repeatBtn.addEventListener('click', function() {
+  mode = 'start';
+  elapsed = 0; lastTs = null;
+  cancelAnimationFrame(rafAudio);
+  audio.pause();
+  fin.classList.remove('show');
+  pf.style.width = '0%';
+  pw.style.display = 'none';
+  mainBtn.textContent = 'Старт';
+  document.body.classList.remove('session-active');
+});
+
+
+// Фикс: возобновляем аудио когда Telegram возвращает фокус
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState === 'visible' && mode === 'playing') {
+    audio.play().catch(function(){});
+    lastTs = null;
+    if (!rafAudio) rafAudio = requestAnimationFrame(tickAudio);
+  }
+});
+window.addEventListener('focus', function() {
+  if (mode === 'playing') {
+    audio.play().catch(function(){});
+    lastTs = null;
+  }
+});
+
+// ── Защита от обрывов сети (auto-recovery) ──
+let lastReloadAt = 0;
+const reloadHistory = [];
+
+function attemptReload(reason) {
+  if (mode !== 'playing') return;
+  const now = Date.now();
+  if (now - lastReloadAt < 10000) return;
+
+  const savedTime = (isFinite(audio.currentTime) && audio.currentTime > 0)
+    ? audio.currentTime
+    : elapsed;
+  if (!isFinite(savedTime) || savedTime <= 0) return;
+
+  lastReloadAt = now;
+  reloadHistory.push(now);
+  while (reloadHistory.length && reloadHistory[0] < now - 30000) reloadHistory.shift();
+  if (reloadHistory.length >= 3) {
+    console.warn('[audio recovery] частые перезагрузки:', reloadHistory.length, 'за 30 сек,', reason);
+  }
+  console.log('[audio recovery]', reason, 'at', savedTime.toFixed(1));
+
+  const onReady = function() {
+    audio.removeEventListener('canplay', onReady);
+    try { audio.currentTime = savedTime; } catch (e) {}
+    if (mode === 'playing') audio.play().catch(function(){});
+  };
+  audio.addEventListener('canplay', onReady);
+  try { audio.load(); } catch (e) {}
+}
+
+audio.addEventListener('stalled', function() { attemptReload('stalled'); });
+audio.addEventListener('error',   function() { attemptReload('error'); });
+audio.addEventListener('waiting', function() {
+  setTimeout(function() {
+    if (mode === 'playing' && audio.readyState < 3) attemptReload('waiting');
+  }, 4000);
+});
+
+function endSession() {
+  mode = 'start';
+  cancelAnimationFrame(rafAudio);
+  audio.pause();
+  fin.classList.add('show');
+}
+
+function init() {
+  document.querySelector('.app').classList.add('ready');
+}
+
+if (!irenaGetInitData()) {
+  var _b = document.getElementById("appBackBtn");
+  if (_b) {
+    var _t = localStorage.getItem("irena_access_token") || "";
+    var _e = parseInt(localStorage.getItem("irena_access_token_expires_at") || "0", 10);
+    var _r = Math.max(1, Math.round((_e - Date.now()) / 1000));
+    _b.href = "https://vladlen00.github.io/studio/?v=8" + (_t ? ("#irena_token=" + encodeURIComponent(_t) + "&exp=" + encodeURIComponent(_r)) : "");
+    _b.style.display = "inline-flex";
+  }
+}
+irenaCheckAccess().then(ok => { if (ok) init(); });
+</script>
